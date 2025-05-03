@@ -17,23 +17,23 @@ pd.options.mode.chained_assignment = None
 
 from preprocess.char_mapping import *
 from preprocess.patterns import *
-from preprocess.utils import *
+# from preprocess.utils import *
 from preprocess.chart_process import get_instructions, get_hospital_course, strip_short_text, why_waht_next_process, remove_regex_dict
 
 
 @dataclass
 class CLIConfig:
-    input_file: str
+    input: str
     output_dir: str
-    start_from_step: int = 0
+    which_step: int = 0
     reproduce_avs_extraction: bool = False
 
     @staticmethod
     def from_cli() -> "CLIConfig":
         parser = argparse.ArgumentParser(description="Pre‑process MIMIC discharge summaries.")
-        parser.add_argument("--input_file", required=True, help="Path to input CSV or pickle file")
+        parser.add_argument("--input", required=True, help="Path to input CSV or pickle file")
         parser.add_argument("--output_dir", required=True, help="Directory for processed output")
-        parser.add_argument("--start_from_step", type=int, default=0, help="Resume pipeline from this step id")
+        parser.add_argument("--which_step", type=int, default=0, help="Resume pipeline from this step id")
         parser.add_argument("--reproduce_avs_extraction", action="store_true", help="Run only the AVS extraction branch")
         args = parser.parse_args()
         return CLIConfig(**vars(args))
@@ -252,13 +252,13 @@ def main() -> None:
     cfg = CLIConfig.from_cli()
 
     try:
-        df = pd.read_pickle(cfg.input_file)
+        df = pd.read_pickle(cfg.input)
     except pickle.UnpicklingError:
-        df = pd.read_csv(cfg.input_file)
+        df = pd.read_csv(cfg.input)
     except Exception as exc:
         raise ValueError("Input must be a valid pickle or CSV") from exc
 
-    print(f"Loaded {len(df):,} records from {cfg.input_file} …")
+    print(f"Loaded {len(df):,} records from {cfg.input} …")
 
     # ---------------------------------------------------------------------
     # Optional AVS extraction branch – mirrors original flag behaviour
@@ -283,7 +283,7 @@ def main() -> None:
     # Standard multi‑step pipeline – iterate over the registry
     # ---------------------------------------------------------------------
     for step_id in sorted(STEP_REGISTRY):
-        if step_id < cfg.start_from_step:
+        if step_id < cfg.which_step:
             continue
         df = STEP_REGISTRY[step_id](df)
         print(f"    DataFrame now has {len(df):,} rows.")

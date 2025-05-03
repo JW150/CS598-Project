@@ -11,7 +11,7 @@ import pandas as pd
 
 @dataclass
 class CliConfig:
-    input_file: Path
+    input: Path
     output_dir: Path
     hospital_course_column: str
     summary_column: str
@@ -20,7 +20,7 @@ class CliConfig:
 
 def _parse_args() -> CliConfig:
     p = argparse.ArgumentParser(description="Shuffle & split MIMIC notes")
-    p.add_argument("--input_file", required=True, type=Path)
+    p.add_argument("--input", required=True, type=Path)
     p.add_argument("--output_dir", required=True, type=Path)
     p.add_argument("--hospital_course_column", required=True)
     p.add_argument("--summary_column", required=True)
@@ -56,8 +56,8 @@ def _export_jsonlines(df: pd.DataFrame, path: Path) -> None:
 
 
 def run(cfg: CliConfig) -> None:
-    df = _load_dataframe(cfg.input_file)
-    print(f"Loaded {len(df):,} rows from {cfg.input_file}")
+    df = _load_dataframe(cfg.input)
+    print(f"Loaded {len(df):,} rows from {cfg.input}")
 
     df = (
         df[[cfg.hospital_course_column, cfg.summary_column]]
