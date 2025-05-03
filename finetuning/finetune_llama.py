@@ -12,7 +12,9 @@ from peft import (
 from trl import SFTTrainer, DataCollatorForCompletionOnlyLM
 from torch.utils.data import DataLoader
 from tqdm import tqdm
-import random  # For simulating human feedback in RL-HITL
+import random  # For simulating human feedback
+from rouge_score import rouge_scorer
+import bert_score
 
 # Set verbosity for transformers logs
 transformers.logging.set_verbosity_info()
@@ -54,7 +56,9 @@ def prepare_model(model_name_or_path, device):
 def human_feedback_loop(generated_summary, reference_summary):
     # Simulate a human rating (1-5 scale for simplicity)
     # In real implementation, this would involve real human feedback
-    return random.randint(1, 5)  # Random feedback as a placeholder for now
+    feedback_score = random.randint(1, 5)  # Random feedback as a placeholder for now
+    print(f"Human feedback: {feedback_score} for generated summary.")
+    return feedback_score
 
 # Training loop using SFTTrainer with RL-HITL
 def train_model(model, tokenizer, dataset, output_path, device, epochs=3):
@@ -130,10 +134,10 @@ def train_model(model, tokenizer, dataset, output_path, device, epochs=3):
                 generated_summary = model.generate(batch["input_ids"])
                 reference_summary = batch["labels"]
                 feedback_score = human_feedback_loop(generated_summary, reference_summary)
-                print(f"Human feedback score for epoch {epoch+1}: {feedback_score}")
-
-                # Adjust the reward or loss based on the feedback score
-                # Here, feedback would be used to tweak model outputs (e.g., reinforcement learning loss adjustment)
+                # Use feedback_score to adjust loss or reward (this can be added to RL optimization)
+                
+                # Log the feedback score to see it during training
+                wandb.log({"feedback_score": feedback_score})
 
         # Evaluate after each epoch
         evaluate_model(model, tokenizer, eval_dataloader, device)
@@ -179,14 +183,24 @@ def evaluate_model(model, tokenizer, eval_dataloader, device):
     # Log additional metrics to Weights & Biases
     wandb.log({"rouge_score": rouge_score, "bertscore": bert_score})
 
-# Function to calculate ROUGE score (or any other metric)
+# Function to calculate ROUGE score using rouge_score library
 def calculate_rouge(predictions, references):
-    # Implement ROUGE calculation (e.g., using the `rouge-score` package or other methods)
-    return random.uniform(0, 1)  # Placeholder
+    scorer = rouge_scorer.RougeScorer(['rouge1', 'rouge2', 'rougeL'], use_stemmer=True)
+    total_rouge = {'rouge1': 0, 'rouge2': 0, 'rougeL': 0}
+    num_samples = len(predictions)
 
+    for pred, ref in zip(predictions, references):
+        scores = scorer.score(ref, pred)
+        for metric in total_rouge:
+            total_rouge[metric] += scores[metric].fmeasure
+
+    avg_rouge = {metric: score / num_samples for metric, score in total_rouge.items()}
+    return avg_rouge
+
+# Function to calculate BERTScore using bert_score library
 def calculate_bertscore(predictions, references):
-    # Implement BERTScore calculation (e.g., using the `bert_score` package)
-    return random.uniform(0, 1)  # Placeholder
+    P, R, F1 = bert_score.score(predictions, references, lang='en')
+    return F1.mean().item()  # Return the average F1 score
 
 # Main function to run the script
 def main():
